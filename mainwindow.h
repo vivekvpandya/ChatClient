@@ -30,6 +30,7 @@ private:
     Ui::MainWindow *ui;
     QTcpSocket *socket;
     QString nickNameStr;
+    QHash<QString, int> rooms; // This will be changed to QString -> Room
    // chatRoom chatRoomObj;
 };
 

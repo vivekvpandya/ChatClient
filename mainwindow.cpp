@@ -60,11 +60,13 @@ void MainWindow::readyRead(){
     QStringList roomsList = dataString.split(":",QString::SkipEmptyParts);
     for (QStringList::iterator it = roomsList.begin();
              it != roomsList.end(); ++it) {
-        qDebug() << *it;
-      int distance =  it - roomsList.begin();
-      if(distance % 2 == 0)
-        ui->roomList->addItem(*it);
 
+      int distance =  it - roomsList.begin();
+      if(distance % 2 == 0){
+        ui->roomList->addItem(*it);
+        qDebug() << *it;
+        rooms.insert(*it,(*(it+1)).toInt());
+      }
         }
 
 
@@ -73,7 +75,10 @@ void MainWindow::readyRead(){
 void MainWindow::on_roomList_doubleClicked(const QModelIndex &index)
 {
     qDebug() << index.row();
-    chatRoom *chatRoomObj = new chatRoom();
+    QString roomName = ui->roomList->currentItem()->text();
+    int portNumber = rooms[roomName];
+    chatRoom *chatRoomObj = new chatRoom(nickNameStr,portNumber);
+
     connect(chatRoomObj, SIGNAL(leaveChatRoom(QString)), this,SLOT(leaveChatRoom(QString)));
     chatRoomObj->setWindowTitle(ui->roomList->currentItem()->text());
     chatRoomObj->show();
