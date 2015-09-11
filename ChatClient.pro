@@ -14,10 +14,21 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
         mainwindow.cpp \
-    chatroom.cpp
+    chatroom.cpp \
+    sample.cpp \
+    peer.cpp \
+    message.cpp \
+    room.cpp \
+    unicastchat.cpp
 
 HEADERS  += mainwindow.h \
-    chatroom.h
+    chatroom.h \
+    sample.h \
+    peer.h \
+    message.h \
+    room.h \
+    unicastchat.h
 
 FORMS    += mainwindow.ui \
-    chatroom.ui
+    chatroom.ui \
+    unicastchat.ui

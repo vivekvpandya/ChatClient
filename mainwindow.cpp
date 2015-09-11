@@ -1,6 +1,13 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QDebug>
+#include <QDataStream>
+#include "sample.h"
+#include "peer.h"
+#include "message.h"
+#include <chatroom.h>
+#include <QNetworkInterface>
+#include <unicastchat.h>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -8,10 +15,25 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     socket = new QTcpSocket(this);
+
     connect(socket, SIGNAL(connected()), this, SLOT(connected()));
     connect(socket, SIGNAL(disconnected()), this, SLOT(disconnected()));
     connect(socket, SIGNAL(readyRead()), this, SLOT(readyRead()));
     //connect(socket,SIGNAL(bytesWritten(qint64)), this, SLOT(bytesWritten(qint64)));
+
+    tcpServerForUnicast = new QTcpServer(this);
+
+    // whenever a user connects, it will emit signal
+    connect(tcpServerForUnicast, SIGNAL(newConnection()), this, SLOT(newConnectionForUnicast()));
+
+    if(!tcpServerForUnicast->listen(QHostAddress::Any, 17000))
+    {   // this message should be added to GUI
+         qDebug() << "Server could not start";
+    }
+    else{
+
+        qDebug() << "Server started!";
+    }
 }
 
 MainWindow::~MainWindow()
@@ -26,17 +48,36 @@ void MainWindow::on_connectBtn_clicked()
     qint64 portNum = portNumber.toLongLong();
     nickNameStr = ui->nickName->text();
     qDebug() << nickNameStr;
-
+    Message message = Message(MessageType::GetRoomDetails);
     socket->connectToHost(hostAddress,portNum);
     socket->waitForConnected();
-    QString responseString="getRoomDetails: ";
+
+             QByteArray block;
+            QDataStream out(&block, QIODevice::ReadWrite);
+            out.setVersion(QDataStream::Qt_5_5);
+        //! [4] //! [6]
+            out << (quint16)0;
+            //out << s;
+            //out << peer;
+            out << message;
+            out.device()->seek(0);
+
+            out << (quint16)(block.size() - sizeof(quint16));
+        //! [6] //! [7]
+           qDebug()<<QString(block);
+           socket->write(block);
+           socket->flush();
+
+           socket->waitForBytesWritten(3000);
+           qDebug()<<"getRoomDetails : sent!";
+   /* QString responseString="getRoomDetails: ";
 
     QByteArray tempByteArray = responseString.toUtf8();
     const char *tempChar = tempByteArray.data();
     socket->write(tempChar);
 
     socket->flush();
-
+*/
     //socket->waitForBytesWritten(3000);
 }
 
@@ -55,19 +96,70 @@ void MainWindow::readyRead(){
 
     qDebug() << "Reading ... " <<'\n';
     ui->roomList->clear();
-    QString dataString =  QString::fromLatin1(socket->readAll());
-    qDebug() << dataString;
-    QStringList roomsList = dataString.split(":",QString::SkipEmptyParts);
-    for (QStringList::iterator it = roomsList.begin();
-             it != roomsList.end(); ++it) {
+    quint16 blockSize=0;
+    QDataStream in(socket);
+    in.setVersion(QDataStream::Qt_5_5);
 
-      int distance =  it - roomsList.begin();
-      if(distance % 2 == 0){
-        ui->roomList->addItem(*it);
-        qDebug() << *it;
-        rooms.insert(*it,(*(it+1)).toInt());
-      }
+    if (blockSize == 0) {
+        if (socket->bytesAvailable() < (int)sizeof(quint16))
+            return;
+//! [8]
+
+//! [10]
+        in >> blockSize;
+    }
+
+    if (socket->bytesAvailable() < blockSize)
+        return;
+//! [10] //! [11]
+
+   // Sample sample;
+   // in >> sample;
+   // qDebug() << sample.message+"Message Recieved";
+   // qDebug()<<sample.sender+"From Sender ";
+   // Peer peer;
+    //in >> peer;
+
+    //qDebug() << peer.getNickName();
+    //qDebug() << peer.getpeerAddress();
+    Message message ;
+    in >> message;
+
+    MessageType mtype = message.getMessageType();
+    if(mtype == MessageType::RoomDetails){
+
+        qDebug() << "RoomDetails";
+        std::vector<Room> roomVector = message.getRoomVector();
+        for(Room room: roomVector){
+                    MainWindow::rooms.insert(room.getRoomName(),room);
+                    ui->roomList->addItem(room.getRoomName());
         }
+    }
+    else if (mtype == MessageType::GetRoomDetails){
+        qDebug() <<"GetRoomDetails";
+        // Drop this message
+    }
+
+    std::vector<QString> strings = message.getDataStrings();
+    for(QString str : strings){
+        qDebug() << str;
+    }
+
+
+// Old string logic
+//    QString dataString =  QString::fromLatin1(socket->readAll());
+//    qDebug() << dataString;
+//    QStringList roomsList = dataString.split(":",QString::SkipEmptyParts);
+//    for (QStringList::iterator it = roomsList.begin();
+//             it != roomsList.end(); ++it) {
+
+//      int distance =  it - roomsList.begin();
+//      if(distance % 2 == 0){
+//        ui->roomList->addItem(*it);
+//        qDebug() << *it;
+//        rooms.insert(*it,(*(it+1)).toInt());
+//      }
+//        }
 
 
 }
@@ -76,30 +168,117 @@ void MainWindow::on_roomList_doubleClicked(const QModelIndex &index)
 {
     qDebug() << index.row();
     QString roomName = ui->roomList->currentItem()->text();
-    int portNumber = rooms[roomName];
-    chatRoom *chatRoomObj = new chatRoom(nickNameStr,portNumber);
+    Room room = rooms[roomName];
+    chatRoom *chatRoomObj = new chatRoom(nickNameStr,room);
 
     connect(chatRoomObj, SIGNAL(leaveChatRoom(QString)), this,SLOT(leaveChatRoom(QString)));
-    chatRoomObj->setWindowTitle(ui->roomList->currentItem()->text());
+    connect(chatRoomObj,SIGNAL(emitUnicast(Peer)), this, SLOT(connectToPeer(Peer)));
+    chatRoomObj->setWindowTitle(roomName);
+
     chatRoomObj->show();
-    QString responseString="joinRoom:"+nickNameStr+":"+ui->roomList->currentItem()->text();
+
+    Message message = Message(MessageType::JoinRoom);
+    message.insertDataString(roomName);
+    QHostAddress ownIPaddress;
+        foreach (const QHostAddress &address, QNetworkInterface::allAddresses()) {
+            if (address.protocol() == QAbstractSocket::IPv4Protocol && address != QHostAddress(QHostAddress::LocalHost))
+                ownIPaddress = address;
+        }
+    Peer peer = Peer(nickNameStr,ownIPaddress);
+
+    message.insertPeerObj(peer);
+    QByteArray block;
+   QDataStream out(&block, QIODevice::ReadWrite);
+   out.setVersion(QDataStream::Qt_5_5);
+//! [4] //! [6]
+   out << (quint16)0;
+   //out << s;
+   //out << peer;
+   out << message;
+   out.device()->seek(0);
+
+   out << (quint16)(block.size() - sizeof(quint16));
+//! [6] //! [7]
+  qDebug()<<QString(block);
+  socket->write(block);
+  socket->flush();
+
+  socket->waitForBytesWritten(3000);
+  qDebug()<<"joinRoom : sent!";
+  //Need to sync local copy of Room obj
+  // Need to send multicast message so that other UI will be updated
+  // Multicast Will be sent from ChatRoom object it self
+
+   /* QString responseString="joinRoom:"+nickNameStr+":"+ui->roomList->currentItem()->text();
 
     QByteArray tempByteArray = responseString.toUtf8();
     const char *tempChar = tempByteArray.data();
     socket->write(tempChar);
 
-    socket->flush();
+    socket->flush(); */
 
 }
 
 void MainWindow::leaveChatRoom(QString roomName){
 
-    QString responseString="leaveRoom:"+nickNameStr+":"+roomName;
+    Message message = Message(MessageType::LeaveRoom);
+    message.insertDataString(roomName);
+    QHostAddress ownIPaddress;
+        foreach (const QHostAddress &address, QNetworkInterface::allAddresses()) {
+            if (address.protocol() == QAbstractSocket::IPv4Protocol && address != QHostAddress(QHostAddress::LocalHost))
+                ownIPaddress = address;
+        }
+    Peer peer = Peer(nickNameStr,ownIPaddress);
+
+    message.insertPeerObj(peer);
+    QByteArray block;
+   QDataStream out(&block, QIODevice::ReadWrite);
+   out.setVersion(QDataStream::Qt_5_5);
+//! [4] //! [6]
+   out << (quint16)0;
+   //out << s;
+   //out << peer;
+   out << message;
+   out.device()->seek(0);
+
+   out << (quint16)(block.size() - sizeof(quint16));
+//! [6] //! [7]
+  qDebug()<<QString(block);
+  socket->write(block);
+  socket->flush();
+
+  socket->waitForBytesWritten(3000);
+  qDebug()<<"LeaveRoom : sent!";
+
+  //Need to sync local copy of Room obj
+  // Need to send multicast message so that other UI will be updated
+  // Multicast Will be sent from ChatRoom object it self
+
+
+   /* QString responseString="leaveRoom:"+nickNameStr+":"+roomName;
 
     QByteArray tempByteArray = responseString.toUtf8();
     const char *tempChar = tempByteArray.data();
     socket->write(tempChar);
 
-    socket->flush();
+    socket->flush();*/
+
+
+}
+
+void MainWindow::newConnectionForUnicast(){
+    while(tcpServerForUnicast->hasPendingConnections()){
+
+        QTcpSocket *socket = tcpServerForUnicast->nextPendingConnection();
+        UnicastChat *unicastChat = new UnicastChat(nickNameStr,socket);
+        unicastChat->show();
+
+    }
+}
+
+void MainWindow::connectToPeer(Peer peer){
+
+    UnicastChat *unicastChat = new UnicastChat(nickNameStr,peer);
+    unicastChat->show();
 
 }

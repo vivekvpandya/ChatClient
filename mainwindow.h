@@ -4,6 +4,7 @@
 #include <QMainWindow>
 #include <QTcpSocket>
 #include "chatroom.h"
+#include <QTcpServer>
 
 namespace Ui {
 class MainWindow;
@@ -22,15 +23,21 @@ private slots:
     void connected();
     void disconnected();
     void readyRead();
+    void newConnectionForUnicast();
 
     void leaveChatRoom(QString roomName);
     void on_roomList_doubleClicked(const QModelIndex &index);
+    void connectToPeer(Peer peer);
 
 private:
     Ui::MainWindow *ui;
     QTcpSocket *socket;
     QString nickNameStr;
-    QHash<QString, int> rooms; // This will be changed to QString -> Room
+
+    QTcpServer *tcpServerForUnicast;
+
+
+    QHash<QString, Room> rooms;// This will be changed to QString -> Room
    // chatRoom chatRoomObj;
 };
 
