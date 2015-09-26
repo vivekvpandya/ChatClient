@@ -102,6 +102,8 @@ void UnicastChat::on_sendBtn_pressed()
     Message message = Message(MessageType::Message);
     message.insertDataString(messageStr);
     message.insertDataString(m_nickName);
+    ui->chatBox->append(m_nickName + " : "+messageStr);
+
 
     QByteArray block;
    QDataStream out(&block, QIODevice::ReadWrite);
