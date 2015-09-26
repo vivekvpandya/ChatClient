@@ -6,6 +6,7 @@ UnicastChat::UnicastChat(QString nickName,Peer peer,QWidget *parent) :
     ui(new Ui::UnicastChat)
 {   m_nickName = nickName;
     ui->setupUi(this);
+    this->setWindowTitle(peer.getNickName());
     socket = new QTcpSocket(this);
     connect(socket, SIGNAL(connected()), this, SLOT(connected()));
     connect(socket, SIGNAL(disconnected()), this, SLOT(disconnected()));
@@ -85,8 +86,10 @@ void UnicastChat::readyRead(){
        QString sender = messageStrings.at(1);
        QString message = messageStrings.at(0);
        ui->chatBox->append(sender + " : "+message);
+       this->setWindowTitle(sender);
 
     }
+
 
 
 
@@ -121,5 +124,6 @@ void UnicastChat::on_sendBtn_pressed()
 
   socket->waitForBytesWritten(3000);
   qDebug()<<"messageSent : sent!";
+  ui->chatBox->append(m_nickName + " : "+messageStr);
 
 }
