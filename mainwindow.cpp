@@ -8,6 +8,7 @@
 #include <chatroom.h>
 #include <QNetworkInterface>
 #include <unicastchat.h>
+#include <QMessageBox>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -19,6 +20,7 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(socket, SIGNAL(connected()), this, SLOT(connected()));
     connect(socket, SIGNAL(disconnected()), this, SLOT(disconnected()));
     connect(socket, SIGNAL(readyRead()), this, SLOT(readyRead()));
+    connect(socket, SIGNAL(error(QAbstractSocket::SocketError)),this, SLOT(displayError(QAbstractSocket::SocketError)));
     //connect(socket,SIGNAL(bytesWritten(qint64)), this, SLOT(bytesWritten(qint64)));
 
     tcpServerForUnicast = new QTcpServer(this);
@@ -41,12 +43,20 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::on_connectBtn_clicked()
+int MainWindow::on_connectBtn_clicked()
 {
     QString hostAddress = ui->hostAddress->text();
     QString portNumber = ui->portNum->text();
     qint64 portNum = portNumber.toLongLong();
     nickNameStr = ui->nickName->text();
+    if (nickNameStr.isEmpty() == true){
+        QMessageBox nickerror;
+        nickerror.setText("Nick Name is compulsory");
+        nickerror.exec();
+       // ui->setupUi(this);
+        return -1;
+    }
+
     qDebug() << nickNameStr;
     Message message = Message(MessageType::GetRoomDetails);
     socket->connectToHost(hostAddress,portNum);
@@ -79,6 +89,7 @@ void MainWindow::on_connectBtn_clicked()
     socket->flush();
 */
     //socket->waitForBytesWritten(3000);
+return 0;
 }
 
 void MainWindow::connected(){
@@ -280,5 +291,31 @@ void MainWindow::connectToPeer(Peer peer){
 
     UnicastChat *unicastChat = new UnicastChat(nickNameStr,peer);
     unicastChat->show();
+
+}
+
+void MainWindow::displayError(QAbstractSocket::SocketError socketError)
+{
+    switch (socketError) {
+    case QAbstractSocket::RemoteHostClosedError:
+        break;
+    case QAbstractSocket::HostNotFoundError:
+        QMessageBox::information(this, tr("Chat Client"),
+                                 tr("The host was not found. Please check the "
+                                    "host name and port settings."));
+        break;
+    case QAbstractSocket::ConnectionRefusedError:
+        QMessageBox::information(this, tr("Chat Client"),
+                                 tr("The connection was refused by the peer. "
+                                    "Make sure the Room Manager is running, "
+                                    "and check that the host name and port "
+                                    "settings are correct."));
+        break;
+    default:
+        QMessageBox::information(this, tr("Chat Client"),
+                                 tr("The following error occurred: %1.")
+                                 .arg(socket->errorString()));
+    }
+
 
 }

@@ -5,6 +5,7 @@
 #-------------------------------------------------
 
 QT       += core gui network xml
+QMAKE_CXXFLAGS += -std=c++11
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -32,3 +33,4 @@ HEADERS  += mainwindow.h \
 FORMS    += mainwindow.ui \
     chatroom.ui \
     unicastchat.ui
+

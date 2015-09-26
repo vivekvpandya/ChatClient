@@ -81,7 +81,7 @@ void UnicastChat::readyRead(){
     if(mtype == MessageType::Message){
 
         qDebug() << "Message";
-        std::vector<QString> messageStrings = message.getDataStrings();
+       std::vector<QString> messageStrings = message.getDataStrings();
        QString sender = messageStrings.at(1);
        QString message = messageStrings.at(0);
        ui->chatBox->append(sender + " : "+message);
