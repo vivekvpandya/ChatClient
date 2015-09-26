@@ -57,6 +57,9 @@ int MainWindow::on_connectBtn_clicked()
         return -1;
     }
 
+    if(socket->isValid() == true){
+        return 0;
+    }else{
     qDebug() << nickNameStr;
     Message message = Message(MessageType::GetRoomDetails);
     socket->connectToHost(hostAddress,portNum);
@@ -88,7 +91,8 @@ int MainWindow::on_connectBtn_clicked()
 
     socket->flush();
 */
-    //socket->waitForBytesWritten(3000);
+  }
+           //socket->waitForBytesWritten(3000);
 return 0;
 }
 
