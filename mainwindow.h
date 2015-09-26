@@ -19,12 +19,12 @@ public:
     ~MainWindow();
 
 private slots:
-    void on_connectBtn_clicked();
+    int on_connectBtn_clicked();
     void connected();
     void disconnected();
     void readyRead();
     void newConnectionForUnicast();
-
+    void displayError(QAbstractSocket::SocketError socketError);
     void leaveChatRoom(QString roomName);
     void on_roomList_doubleClicked(const QModelIndex &index);
     void connectToPeer(Peer peer);
