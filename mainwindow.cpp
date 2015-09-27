@@ -2,7 +2,6 @@
 #include "ui_mainwindow.h"
 #include <QDebug>
 #include <QDataStream>
-#include "sample.h"
 #include "peer.h"
 #include "message.h"
 #include <chatroom.h>
@@ -43,6 +42,10 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+/* This is a slot responsible to handle clicked signal sent by connect button.
+ * The slot will read details from the text fields and connects to RoomManager process on remote machine.
+ * It also sends a message of type GetRoomDetails.
+ * */
 int MainWindow::on_connectBtn_clicked()
 {
     QString hostAddress = ui->hostAddress->text();
@@ -58,6 +61,27 @@ int MainWindow::on_connectBtn_clicked()
     }
 
     if(socket->isValid() == true){
+        Message message = Message(MessageType::GetRoomDetails);
+
+
+                 QByteArray block;
+                QDataStream out(&block, QIODevice::ReadWrite);
+                out.setVersion(QDataStream::Qt_5_5);
+            //! [4] //! [6]
+                out << (quint16)0;
+                //out << s;
+                //out << peer;
+                out << message;
+                out.device()->seek(0);
+
+                out << (quint16)(block.size() - sizeof(quint16));
+            //! [6] //! [7]
+               qDebug()<<QString(block);
+               socket->write(block);
+               socket->flush();
+
+               socket->waitForBytesWritten(3000);
+               qDebug()<<"getRoomDetails : sent!";
         return 0;
     }else{
     qDebug() << nickNameStr;
@@ -107,6 +131,10 @@ void MainWindow::disconnected(){
     qDebug() << "Disconnected !";
 }
 
+/* This is a slot responsible to handle readyRead signal sent by connected TCP socket.
+ * It will update client data structures based on message type received,
+ * for example in response to GetRoomDetails client will receive RoomDetails message.
+ * */
 void MainWindow::readyRead(){
 
     qDebug() << "Reading ... " <<'\n';
@@ -179,6 +207,9 @@ void MainWindow::readyRead(){
 
 }
 
+/* This is a slot responsible to handle doubleClicked signal sent by roomList of ui reference.
+ * It will initialized chatroom object and send a join message to RoomManager for particular room.
+ * */
 void MainWindow::on_roomList_doubleClicked(const QModelIndex &index)
 {
     qDebug() << index.row();
@@ -257,7 +288,9 @@ void MainWindow::on_roomList_doubleClicked(const QModelIndex &index)
 
 }
 
-
+/* This slot will be triggered in response to chatroom’s leaveChatRoom signal
+ * and it will sent LeaveRoom message for particular room to RoomManager.
+ * */
 void MainWindow::leaveChatRoom(QString roomName){
 
     Message message = Message(MessageType::LeaveRoom);
@@ -305,6 +338,9 @@ void MainWindow::leaveChatRoom(QString roomName){
 
 }
 
+/* This slot will be triggered when tcpServerForUnicast receives newConnection signal.
+ * It will create a unicastchat object and  executes its show method.
+ * */
 void MainWindow::newConnectionForUnicast(){
     while(tcpServerForUnicast->hasPendingConnections()){
 
@@ -315,6 +351,9 @@ void MainWindow::newConnectionForUnicast(){
     }
 }
 
+/* This slot will be triggered when chatroom emits emitUnicast signal.
+ * It will create an object of unicastchat class and executes its show method.
+ * */
 void MainWindow::connectToPeer(Peer peer){
 
     UnicastChat *unicastChat = new UnicastChat(nickNameStr,peer);

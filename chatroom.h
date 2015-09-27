@@ -21,7 +21,9 @@ public:
     ~chatRoom();
     void closeEvent(QCloseEvent *event);
 signals:
+    /* This signal will be emitted when closeEvent slot on QWidget is executed. */
     void leaveChatRoom(QString chatRoomName);
+    /* This signal will be emitted when on_peerList_itemDoubleClicked slot is executed. */
     void emitUnicast(Peer peer);
 
 private slots:

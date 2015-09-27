@@ -75,6 +75,9 @@ void chatRoom::closeEvent(QCloseEvent *event){
 
 }
 
+/* This slot is triggered when UDP socket emits signal readyRead.
+ * It will change chatclient data structure according to message received.
+ * */
 void chatRoom::processPendingDatagrams()
 {   Message message;
     while (udpSocket->hasPendingDatagrams()) {
@@ -127,7 +130,9 @@ void chatRoom::processPendingDatagrams()
     }
 }
 
-
+/* This slot is triggered when send button is clicked from ui.
+ * It will read message form ui and write it to UDP socket.
+ * */
 
 void chatRoom::on_sendBtn_clicked()
 {
@@ -148,6 +153,10 @@ void chatRoom::on_sendBtn_clicked()
         udpSocket->writeDatagram(datagram, groupAddress, m_room.getPort());
 }
 
+
+/* This slot is triggered when a peer list item is double clicked.
+ * It will emit emitUnicast signal with peer name.
+ * */
 void chatRoom::on_peerList_itemDoubleClicked(QListWidgetItem *item)
 {
        QString peerName = ui->peerList->currentItem()->text();

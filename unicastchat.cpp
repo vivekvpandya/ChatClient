@@ -45,6 +45,9 @@ void UnicastChat::disconnected(){
     qDebug() << "Disconnected !";
 }
 
+/* This slot is triggered when TCP socket receives unicast chat data.
+ * It will update unicastchat ui accordingly.
+ * */
 void UnicastChat::readyRead(){
 
     qDebug() << "Reading ... " <<'\n';
@@ -97,7 +100,9 @@ void UnicastChat::readyRead(){
 }
 
 
-
+/* This slot it triggered when send button is clicked from the ui.
+ * It will read message and write it on TCP socket.
+ * */
 
 void UnicastChat::on_sendBtn_pressed()
 {
@@ -105,7 +110,7 @@ void UnicastChat::on_sendBtn_pressed()
     Message message = Message(MessageType::Message);
     message.insertDataString(messageStr);
     message.insertDataString(m_nickName);
-    ui->chatBox->append(m_nickName + " : "+messageStr);
+
 
 
     QByteArray block;
@@ -127,5 +132,6 @@ void UnicastChat::on_sendBtn_pressed()
   socket->waitForBytesWritten(3000);
   qDebug()<<"messageSent : sent!";
   ui->chatBox->append(m_nickName + " : "+messageStr);
+  ui->messgeBox->clear();
 
 }
